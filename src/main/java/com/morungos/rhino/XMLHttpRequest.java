@@ -1,9 +1,14 @@
 package com.morungos.rhino;
 
 import java.io.IOException;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 
+import javax.script.Invocable;
+import javax.script.ScriptException;
+
 import org.apache.http.HttpResponse;
+import org.apache.http.StatusLine;
 import org.apache.http.auth.AuthScope;
 import org.apache.http.auth.UsernamePasswordCredentials;
 import org.apache.http.client.CredentialsProvider;
@@ -13,6 +18,7 @@ import org.apache.http.concurrent.FutureCallback;
 import org.apache.http.impl.client.BasicCredentialsProvider;
 import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.http.impl.client.SystemDefaultCredentialsProvider;
+import org.apache.http.impl.nio.client.CloseableHttpAsyncClient;
 import org.apache.http.impl.nio.client.HttpAsyncClientBuilder;
 import org.apache.http.impl.nio.client.HttpAsyncClients;
 import org.apache.http.nio.client.HttpAsyncClient;
@@ -58,6 +64,8 @@ public class XMLHttpRequest {
 	private final Logger logger = LoggerFactory.getLogger(getClass());
 
 	private int readyState = UNSENT;
+	
+	private String responseType = "";
 
 	public String getClassName() {
 		return "XMLHttpRequest";
@@ -78,35 +86,20 @@ public class XMLHttpRequest {
 		return this.readyState;
 	}
 	
-	private final class RequestCallback implements FutureCallback<Boolean> {
-
-	    public void failed(final Exception ex) {
-	        // do something
-	    }
-
-	    public void completed(final Boolean result) {
-	        // do something
-	    }
-
-	    public void cancelled() {
-	        // do something
-	    }
-	}
-
-//	private Invocable onreadystatechange = null;
+	private Invocable onreadystatechange = null;
 	
 	private RequestBuilder builder;
 	private CredentialsProvider credentialsProvider;
 	private boolean async;
 
-//	public void setOnreadystatechange(Invocable callback) {
-//		onreadystatechange = callback;
-//	}
-//	
-//	public Invocable getOnreadystatechange() {
-//		return onreadystatechange;
-//	}
-//	
+	public void setOnreadystatechange(Invocable callback) {
+		onreadystatechange = callback;
+	}
+	
+	public Invocable getOnreadystatechange() {
+		return onreadystatechange;
+	}
+	
 	public void open(String method, String url) {
 		do_open(method, url, true, "", "");
 	}
@@ -122,20 +115,20 @@ public class XMLHttpRequest {
 	public void open(String method, String url, Object async, String user, String password) {
 		do_open(method, url, async, user, password);
 	}
-//	
-//	private void changeReadyState(int state) {
-//		readyState = state;
-//		if (onreadystatechange != null) {
-//			try {
-//				onreadystatechange.invokeFunction("onreadystatechange", state);
-//			} catch (NoSuchMethodException e) {
-//				e.printStackTrace();
-//			} catch (ScriptException e) {
-//				e.printStackTrace();
-//			}
-//		}
-//	}
-//	
+
+	private void changeReadyState(int state) {
+		readyState = state;
+		if (onreadystatechange != null) {
+			try {
+				onreadystatechange.invokeFunction("onreadystatechange", state);
+			} catch (NoSuchMethodException e) {
+				e.printStackTrace();
+			} catch (ScriptException e) {
+				e.printStackTrace();
+			}
+		}
+	}
+	
 	public void do_open(String method, String url, Object async, String user, String password) {
 		
 		logger.info("Opening: {}, {}, {}, {}, {}", method, url, async, user, password);
@@ -157,6 +150,8 @@ public class XMLHttpRequest {
 		} else {
 			credentialsProvider = new SystemDefaultCredentialsProvider();
 		}
+		
+		changeReadyState(OPENED);
 	}
 	
 	public void send() {
@@ -178,14 +173,46 @@ public class XMLHttpRequest {
 		}
 	}
 	
+	private Future<HttpResponse> futureResponse;
+	
 	public void do_sendASynchronous() {
 		HttpAsyncClientBuilder clientBuilder = HttpAsyncClientBuilder.create();
-		HttpAsyncClient httpclient = clientBuilder.build();
+		CloseableHttpAsyncClient httpclient = clientBuilder.build();
+		httpclient.start();
 		logger.info("Initiating asynchronous remote request");
-		Future<HttpResponse> future = httpclient.execute(builder.build(), null);
+		futureResponse = httpclient.execute(builder.build(), null);
 	}
+	
+//	try {
+//		HttpResponse response = future.get();
+//		logger.info("Got asynchronous response");
+//		changeReadyState(DONE);
+//	} catch (InterruptedException e) {
+//		e.printStackTrace();
+//	} catch (ExecutionException e) {
+//		e.printStackTrace();
+//	}
 	
 	public void setRequestHeader(String name, String value) {
 		builder.addHeader(name, value);
+	}
+	
+	private int status = 0;
+	
+	private String statusText = "";
+	
+	private void unpackResponse(HttpResponse response) {
+		StatusLine statusLine = response.getStatusLine();
+		status = statusLine.getStatusCode();
+		statusText = statusLine.getReasonPhrase();
+		
+	}
+	
+	public int getStatus() {
+		return status;
+	}
+	
+	public String getStatusText() {
+		return statusText;
 	}
 }

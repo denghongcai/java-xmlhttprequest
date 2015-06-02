@@ -3,9 +3,12 @@ package com.morungos.rhino;
 import static junit.framework.Assert.*;
 import static org.junit.matchers.JUnitMatchers.containsString;
 
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.io.StringReader;
 import java.lang.reflect.InvocationTargetException;
 
+import javax.script.Bindings;
 import javax.script.ScriptContext;
 import javax.script.ScriptEngine;
 import javax.script.ScriptEngineManager;
@@ -27,16 +30,23 @@ public class ScriptingTest {
 		ScriptEngine engine = manager.getEngineByName("nashorn");
 		
 		ScriptContext context = new SimpleScriptContext();
-		context.setBindings(engine.createBindings(), ScriptContext.ENGINE_SCOPE);
+		Bindings bindings = engine.createBindings();
+		context.setBindings(bindings, ScriptContext.ENGINE_SCOPE);
 		
-		engine.eval("var XMLHttpRequest = Java.type('com.morungos.rhino.XMLHttpRequest')", context);
-		engine.eval(new StringReader(script), context);
+		InputStream resourceStream = getClass().getClassLoader().getResourceAsStream("polyfill.nashorn.js");
+		
+		engine.eval(new InputStreamReader(resourceStream), context);
+		
+		String wrapped = "main(function() { " + script + " });";
+		
+		engine.eval(new StringReader(wrapped), context);
 	}
 
 	@Test
-	public void testInstantiation() throws IllegalAccessException, InstantiationException, InvocationTargetException, ScriptException {
+	public void testEventLoopWrapping() throws IllegalAccessException, InstantiationException, InvocationTargetException, ScriptException {
 		StringBuilder script = new StringBuilder();
-		script.append("var request = new XMLHttpRequest();\n");
+		script.append("var testDelay = function() { };\n");
+		script.append("setTimeout(testDelay, 100);\n");
 		
 		testScript(script.toString());
 	}
@@ -45,31 +55,25 @@ public class ScriptingTest {
 	public void testInstantiationReadyState() throws IllegalAccessException, InstantiationException, InvocationTargetException, ScriptException {
 		StringBuilder script = new StringBuilder();
 		script.append("var request = new XMLHttpRequest();\n");
+		
 		script.append("org.junit.Assert.assertEquals(0, request.readyState, 0.0);\n");
 		
 		testScript(script.toString());
 	}
 
-	@Test
-	public void testInvalidCall() throws IllegalAccessException, InstantiationException, InvocationTargetException, ScriptException {
-		StringBuilder script = new StringBuilder();
-		script.append("var request = new XMLHttpRequest();\n");
-		script.append("request.open('GET', 'http://google.com', 'Ninety-nine');\n");
-		script.append("request.send();\n");
-		
-		thrown.expect(RuntimeException.class);
-		thrown.expectMessage(containsString("Invalid value for async"));
-
-		testScript(script.toString());
-	}
 
 	@Test
 	public void testBasicCall() throws IllegalAccessException, InstantiationException, InvocationTargetException, ScriptException {
 		StringBuilder script = new StringBuilder();
 		script.append("var request = new XMLHttpRequest();\n");
-		script.append("request.open('GET', 'http://google.com');\n");
+		script.append("var success = false;\n");
+		script.append("request.open('GET', 'http://ip.jsontest.com');\n");
+		script.append("request.responseType = 'json';\n");
+		script.append("request.onreadystatechange = function() { if (request.readyState == 4) { success = typeof request.response.ip === 'string'; } };\n");
 		script.append("request.send();\n");
 		
+		script.append("setTimeout(function() { org.junit.Assert.assertTrue(success); }, 1000);\n");
+
 		testScript(script.toString());
 	}
 }
