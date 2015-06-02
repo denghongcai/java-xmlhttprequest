@@ -24,7 +24,7 @@ public class ScriptingTest {
 	@Rule
 	public ExpectedException thrown = ExpectedException.none();
 
-	private void testScript(String script) throws IllegalAccessException, InstantiationException, InvocationTargetException, ScriptException {
+	private void testScript(String script) throws ScriptException {
 		
 		ScriptEngineManager manager = new ScriptEngineManager();
 		ScriptEngine engine = manager.getEngineByName("nashorn");
@@ -39,11 +39,12 @@ public class ScriptingTest {
 		
 		String wrapped = "main(function() { " + script + " });";
 		
-		engine.eval(new StringReader(wrapped), context);
+		Object result = engine.eval(new StringReader(wrapped), context);
+		System.err.println(result);
 	}
 
 	@Test
-	public void testEventLoopWrapping() throws IllegalAccessException, InstantiationException, InvocationTargetException, ScriptException {
+	public void testEventLoopWrapping() throws ScriptException {
 		StringBuilder script = new StringBuilder();
 		script.append("var testDelay = function() { };\n");
 		script.append("setTimeout(testDelay, 100);\n");
@@ -52,7 +53,19 @@ public class ScriptingTest {
 	}
 
 	@Test
-	public void testInstantiationReadyState() throws IllegalAccessException, InstantiationException, InvocationTargetException, ScriptException {
+	public void testEventLoopErrorWrapping() throws ScriptException {
+		StringBuilder script = new StringBuilder();
+		script.append("var testDelay = function() { throw new Error('foo'); };\n");
+		script.append("setTimeout(testDelay, 100);\n");
+
+		thrown.expect(ScriptException.class);
+		thrown.expectMessage(containsString("Error: foo"));
+
+		testScript(script.toString());
+	}
+
+	@Test
+	public void testInstantiationReadyState() throws ScriptException {
 		StringBuilder script = new StringBuilder();
 		script.append("var request = new XMLHttpRequest();\n");
 		

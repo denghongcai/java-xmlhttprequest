@@ -11,6 +11,8 @@
  
   var timer = new Timer('jsEventLoop', false);
   var phaser = new Phaser();
+  
+  context._finalException = null;
  
   var onTaskFinished = function() {
     phaser.arriveAndDeregister();
@@ -28,10 +30,16 @@
  
       try {
         fn.apply(context, args);
-      } catch (e) {
-        System.err.println(e.stack || e.toString() + " " + e.getMessage());
-      } finally {
         phaser.arriveAndDeregister();
+      } catch (e) {
+      	
+      	// Store the error
+        context._finalException = e;
+        
+        // Clear the phaser blocks and the timer 
+        // This drops main to end
+        phaser.forceTermination();
+        timer.cancel();
       }
     }, millis);
  
@@ -66,6 +74,7 @@
   };
  
   context.main = function(fn, waitTimeMillis) {
+  	  	
     if (!waitTimeMillis) {
       waitTimeMillis = 60 * 1000;
     }
@@ -80,7 +89,7 @@
     // on the phaser.
     phaser.register();
     setTimeout(fn, 0);
- 
+     
     // timeout is handled via TimeoutException. This is good enough for us.
     phaser.awaitAdvanceInterruptibly(phaser.arrive(),
       waitTimeMillis,
@@ -89,6 +98,10 @@
     // a new phase will have started, so we need to arrive and deregister
     // to make sure that following executions of main(...) will work as well.
     phaser.arriveAndDeregister();
+    
+    if (context._finalException) {
+    	throw context._finalException;
+    }
   };
  
   context.shutdown = function() {
