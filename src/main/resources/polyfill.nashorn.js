@@ -12,10 +12,15 @@
   var timer = new Timer('jsEventLoop', false);
   var phaser = new Phaser();
   
-  context._finalException = null;
+  var finalException = null;
  
   var onTaskFinished = function() {
     phaser.arriveAndDeregister();
+  };
+ 
+  context.shutdown = function() {
+    timer.cancel();
+    phaser.forceTermination();
   };
  
   context.setTimeout = function(fn, millis /* [, args...] */) {
@@ -34,12 +39,11 @@
       } catch (e) {
       	
       	// Store the error
-        context._finalException = e;
+        finalException = e;
         
         // Clear the phaser blocks and the timer 
         // This drops main to end
-        phaser.forceTermination();
-        timer.cancel();
+        context.shutdown();
       }
     }, millis);
  
@@ -99,14 +103,9 @@
     // to make sure that following executions of main(...) will work as well.
     phaser.arriveAndDeregister();
     
-    if (context._finalException) {
-    	throw context._finalException;
+    if (finalException) {
+    	throw finalException;
     }
-  };
- 
-  context.shutdown = function() {
-    timer.cancel();
-    phaser.forceTermination();
   };
  
   context.XMLHttpRequest = function() {
@@ -170,14 +169,26 @@
       
       var callback = new FutureCallback({
       	completed: function(response) {
-      	  
+      		
       	  that.readyState = 4;
       	  
       	  var body = org.apache.http.util.EntityUtils.toString(response.getEntity(), 'UTF-8');
       	  that.responseText = that.response = body;
       	  
       	  if (that.responseType === 'json') {
-            that.response = JSON.parse(that.response);
+            try {
+              that.response = JSON.parse(that.response);
+            } catch (e) {
+      	
+      	     // Store the error
+             finalException = e;
+             
+             context.shutdown();
+            }
+          }
+          
+          if (finalException) {
+          	return;
           }
       	  
       	  var statusLine = response.getStatusLine();
@@ -192,7 +203,13 @@
       	  System.err.println("Cancelled");
       	},
       	failed: function(e) {
-      	  System.err.println(e.stack);
+      		
+     	  that.readyState = 4;
+     	  that.status = 0;
+     	  that.statusText = e.getMessage();
+     	  context.setTimeout(that.onreadystatechange, 0);
+
+      	  phaser.arriveAndDeregister();
       	}
       });
       

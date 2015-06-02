@@ -1,6 +1,5 @@
 package com.morungos.rhino;
 
-import static junit.framework.Assert.*;
 import static org.junit.matchers.JUnitMatchers.containsString;
 
 import java.io.InputStream;
@@ -14,6 +13,7 @@ import javax.script.ScriptEngineManager;
 import javax.script.ScriptException;
 import javax.script.SimpleScriptContext;
 
+import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -23,7 +23,7 @@ public class ScriptingTest {
 	@Rule
 	public ExpectedException thrown = ExpectedException.none();
 
-	private void testScript(String script) throws ScriptException {
+	private Bindings testScript(String script) throws ScriptException {
 		
 		ScriptEngineManager manager = new ScriptEngineManager();
 		ScriptEngine engine = manager.getEngineByName("nashorn");
@@ -39,6 +39,8 @@ public class ScriptingTest {
 		String wrapped = "main(function() { " + script + " });";
 		
 		engine.eval(new StringReader(wrapped), context);
+		
+		return bindings;
 	}
 
 	@Test
@@ -77,14 +79,13 @@ public class ScriptingTest {
 	public void testBasicCall() throws ScriptException {
 		StringBuilder script = new StringBuilder();
 		script.append("var request = new XMLHttpRequest();\n");
-		script.append("var success = false;\n");
-		script.append("request.open('GET', 'http://ip.jsontest.com');\n");
+		script.append("this.success = false;\n");
+		script.append("request.open('GET', 'http://httpbin.org/ip');\n");
 		script.append("request.responseType = 'json';\n");
-		script.append("request.onreadystatechange = function() { if (request.readyState == 4) { success = typeof request.response.ip === 'string'; } };\n");
+		script.append("request.onreadystatechange = function() { if (request.readyState == 4) { success = typeof request.response.origin === 'string'; } };\n");
 		script.append("request.send();\n");
 		
-		script.append("setTimeout(function() { org.junit.Assert.assertTrue(success); }, 1000);\n");
-
-		testScript(script.toString());
+		Boolean success = (Boolean) testScript(script.toString()).get("success");
+		Assert.assertTrue(success);
 	}
 }
