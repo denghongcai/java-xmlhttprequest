@@ -1,7 +1,9 @@
 package com.morungos.rhino;
 
 import java.io.IOException;
+import java.util.concurrent.Future;
 
+import org.apache.http.HttpResponse;
 import org.apache.http.auth.AuthScope;
 import org.apache.http.auth.UsernamePasswordCredentials;
 import org.apache.http.client.CredentialsProvider;
@@ -11,14 +13,13 @@ import org.apache.http.concurrent.FutureCallback;
 import org.apache.http.impl.client.BasicCredentialsProvider;
 import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.http.impl.client.SystemDefaultCredentialsProvider;
-import org.mozilla.javascript.JavaScriptException;
-import org.mozilla.javascript.ScriptableObject;
-import org.mozilla.javascript.Undefined;
-import org.mozilla.javascript.WrappedException;
+import org.apache.http.impl.nio.client.HttpAsyncClientBuilder;
+import org.apache.http.impl.nio.client.HttpAsyncClients;
+import org.apache.http.nio.client.HttpAsyncClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class XMLHttpRequest extends ScriptableObject {
+public class XMLHttpRequest {
 	
 	/**
 	 * When constructed, the XMLHttpRequest object must be in the UNSENT state.
@@ -58,12 +59,11 @@ public class XMLHttpRequest extends ScriptableObject {
 
 	private int readyState = UNSENT;
 
-	@Override
 	public String getClassName() {
 		return "XMLHttpRequest";
 	}
 
-	public void jsConstructor() {
+	public void XMLHttpRequest() {
 		logger.info("Initialising XMLHttpRequest");
 	}
 	
@@ -73,7 +73,7 @@ public class XMLHttpRequest extends ScriptableObject {
 	 * @return the ready-state constant
 	 * @see http://www.w3.org/TR/XMLHttpRequest/#readystate
 	 */
-	public int jsGet_readyState() {
+	public int getReadyState() {
 		logger.info("Returning {}", this.readyState);
 		return this.readyState;
 	}
@@ -107,7 +107,19 @@ public class XMLHttpRequest extends ScriptableObject {
 //		return onreadystatechange;
 //	}
 //	
-	public void jsFunction_open(String method, String url, Object async, String user, String password) {
+	public void open(String method, String url) {
+		do_open(method, url, true, "", "");
+	}
+
+	public void open(String method, String url, Object async) {
+		do_open(method, url, async, "", "");
+	}
+
+	public void open(String method, String url, Object async, String user) {
+		do_open(method, url, async, user, "");
+	}
+
+	public void open(String method, String url, Object async, String user, String password) {
 		do_open(method, url, async, user, password);
 	}
 //	
@@ -128,12 +140,10 @@ public class XMLHttpRequest extends ScriptableObject {
 		
 		logger.info("Opening: {}, {}, {}, {}, {}", method, url, async, user, password);
 				
-		if (async instanceof Undefined) {
-			this.async = true;
-		} else if (async instanceof Boolean) {
+		if (async instanceof Boolean) {
 			this.async = ((Boolean) async).booleanValue();
 		} else {
-			throw new WrappedException(new Exception(String.format("Invalid value for async value: {}", async)));
+			throw new RuntimeException(String.format("Invalid value for async value: {}", async));
 		}
 				
 		builder = RequestBuilder.create(method);
@@ -149,15 +159,30 @@ public class XMLHttpRequest extends ScriptableObject {
 		}
 	}
 	
-	public void jsFunction_send() {
+	public void send() {
+		if (async) {
+			do_sendASynchronous();
+		} else {
+			do_sendSynchronous();
+		}
+	}
+		
+	public void do_sendSynchronous() {
 		HttpClientBuilder clientBuilder = HttpClientBuilder.create();
 		HttpClient httpclient = clientBuilder.build();
 		try {
-			logger.info("Initiating remote request");
+			logger.info("Initiating synchronous remote request");
 			httpclient.execute(builder.build());
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
+	}
+	
+	public void do_sendASynchronous() {
+		HttpAsyncClientBuilder clientBuilder = HttpAsyncClientBuilder.create();
+		HttpAsyncClient httpclient = clientBuilder.build();
+		logger.info("Initiating asynchronous remote request");
+		Future<HttpResponse> future = httpclient.execute(builder.build(), null);
 	}
 	
 	public void setRequestHeader(String name, String value) {
