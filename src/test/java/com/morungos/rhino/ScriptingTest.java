@@ -6,7 +6,6 @@ import static org.junit.matchers.JUnitMatchers.containsString;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.StringReader;
-import java.lang.reflect.InvocationTargetException;
 
 import javax.script.Bindings;
 import javax.script.ScriptContext;
@@ -75,7 +74,7 @@ public class ScriptingTest {
 
 
 	@Test
-	public void testBasicCall() throws IllegalAccessException, InstantiationException, InvocationTargetException, ScriptException {
+	public void testBasicCall() throws ScriptException {
 		StringBuilder script = new StringBuilder();
 		script.append("var request = new XMLHttpRequest();\n");
 		script.append("var success = false;\n");
