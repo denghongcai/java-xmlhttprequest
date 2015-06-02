@@ -1,4 +1,4 @@
-package com.morungos.rhino;
+package com.morungos.xmlhttprequest;
 
 import static org.junit.matchers.JUnitMatchers.containsString;
 
