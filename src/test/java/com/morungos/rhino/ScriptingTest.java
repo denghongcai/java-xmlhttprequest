@@ -39,8 +39,7 @@ public class ScriptingTest {
 		
 		String wrapped = "main(function() { " + script + " });";
 		
-		Object result = engine.eval(new StringReader(wrapped), context);
-		System.err.println(result);
+		engine.eval(new StringReader(wrapped), context);
 	}
 
 	@Test
