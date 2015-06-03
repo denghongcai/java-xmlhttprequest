@@ -9,11 +9,28 @@
   var FutureCallback = Java.type('org.apache.http.concurrent.FutureCallback');
   var HttpAsyncClientBuilder = Java.type('org.apache.http.impl.nio.client.HttpAsyncClientBuilder');
  
-  var timer = new Timer('jsEventLoop', false);
-  var phaser = new Phaser();
-  
   var finalException = null;
- 
+  
+  function newTimer() {
+	timer = new Timer('jsEventLoop', false);
+	if (typeof applicationProperties !== "undefined") {
+	  applicationProperties.put("timer", timer);
+	}
+  }
+
+  function newPhaser() {
+	phaser = new Phaser();
+	if (typeof applicationProperties !== "undefined") {
+	  applicationProperties.put("phaser", phaser);
+	}
+  }
+  
+  var timer;
+  var phaser;
+  
+  newTimer();
+  newPhaser();
+
   var onTaskFinished = function() {
     phaser.arriveAndDeregister();
   };
@@ -84,7 +101,7 @@
     }
  
     if (phaser.isTerminated()) {
-      phaser = new Phaser();
+      newPhaser();
     }
  
     // we register the main(...) function with the phaser so that we
