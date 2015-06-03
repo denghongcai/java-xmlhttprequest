@@ -22,27 +22,39 @@ public class ScriptingTest {
 	
 	@Rule
 	public ExpectedException thrown = ExpectedException.none();
-
-	private Bindings testScript(String script) throws ScriptException {
-		
+	
+	private ScriptEngine getEngine() {
 		ScriptEngineManager manager = new ScriptEngineManager();
 		ScriptEngine engine = manager.getEngineByName("nashorn");
 		
+
+		return engine;
+	}
+	
+	private ScriptContext getContext(ScriptEngine engine) {
 		ScriptContext context = new SimpleScriptContext();
 		Bindings bindings = engine.createBindings();
 		context.setBindings(bindings, ScriptContext.ENGINE_SCOPE);
+		return context;
+	}
+
+	private Bindings testScript(String script) throws ScriptException {
 		
+		ScriptEngine engine = getEngine();
+		ScriptContext context = getContext(engine);
 		InputStream resourceStream = getClass().getClassLoader().getResourceAsStream("polyfill.nashorn.js");
-		
 		engine.eval(new InputStreamReader(resourceStream), context);
 		
 		String wrapped = "main(function() { " + script + " });";
-		
 		engine.eval(new StringReader(wrapped), context);
 		
-		return bindings;
+		return context.getBindings(ScriptContext.ENGINE_SCOPE);
 	}
 
+	/**
+	 * Tests a timeout function.
+	 * @throws ScriptException
+	 */
 	@Test
 	public void testEventLoopWrapping() throws ScriptException {
 		StringBuilder script = new StringBuilder();
@@ -52,6 +64,10 @@ public class ScriptingTest {
 		testScript(script.toString());
 	}
 
+	/**
+	 * Tests a timeout function which throws an error.
+	 * @throws ScriptException
+	 */
 	@Test
 	public void testEventLoopErrorWrapping() throws ScriptException {
 		StringBuilder script = new StringBuilder();
@@ -64,6 +80,10 @@ public class ScriptingTest {
 		testScript(script.toString());
 	}
 
+	/**
+	 * Tests instantiation of XMLHttpRequest.
+	 * @throws ScriptException
+	 */
 	@Test
 	public void testInstantiationReadyState() throws ScriptException {
 		StringBuilder script = new StringBuilder();
@@ -75,6 +95,10 @@ public class ScriptingTest {
 	}
 
 
+	/**
+	 * Tests a basic remote call through XMLHttpRequest.
+	 * @throws ScriptException
+	 */
 	@Test
 	public void testBasicCall() throws ScriptException {
 		StringBuilder script = new StringBuilder();
