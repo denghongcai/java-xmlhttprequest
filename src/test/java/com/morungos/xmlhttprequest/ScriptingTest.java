@@ -7,37 +7,21 @@ import java.io.InputStreamReader;
 import java.io.StringReader;
 
 import javax.script.Bindings;
+import javax.script.Invocable;
 import javax.script.ScriptContext;
 import javax.script.ScriptEngine;
-import javax.script.ScriptEngineManager;
 import javax.script.ScriptException;
-import javax.script.SimpleScriptContext;
 
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
-public class ScriptingTest {
+public class ScriptingTest extends ScriptingTestBase {
 	
 	@Rule
 	public ExpectedException thrown = ExpectedException.none();
 	
-	private ScriptEngine getEngine() {
-		ScriptEngineManager manager = new ScriptEngineManager();
-		ScriptEngine engine = manager.getEngineByName("nashorn");
-		
-
-		return engine;
-	}
-	
-	private ScriptContext getContext(ScriptEngine engine) {
-		ScriptContext context = new SimpleScriptContext();
-		Bindings bindings = engine.createBindings();
-		context.setBindings(bindings, ScriptContext.ENGINE_SCOPE);
-		return context;
-	}
-
 	private Bindings testScript(String script) throws ScriptException {
 		
 		ScriptEngine engine = getEngine();
@@ -112,4 +96,5 @@ public class ScriptingTest {
 		Boolean success = (Boolean) testScript(script.toString()).get("success");
 		Assert.assertTrue(success);
 	}
+
 }
