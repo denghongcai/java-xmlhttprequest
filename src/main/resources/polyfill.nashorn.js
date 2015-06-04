@@ -93,6 +93,21 @@
   context.clearInterval = function(cancel) {
     cancel();
   };
+  
+  context.eventLoop = function() {
+    if (phaser.isTerminated()) {
+      newPhaser();
+    }
+	
+	var original = phaser.register();
+	phaser.awaitAdvance(original);
+ 
+    phaser.arriveAndDeregister();
+    
+    if (finalException) {
+      throw finalException;
+    }
+  };
  
   context.main = function(fn, waitTimeMillis) {
   	  	

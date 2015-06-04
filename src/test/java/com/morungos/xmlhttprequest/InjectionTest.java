@@ -4,6 +4,9 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Timer;
+import java.util.TimerTask;
+import java.util.concurrent.Phaser;
 
 import javax.script.Bindings;
 import javax.script.Invocable;
@@ -27,35 +30,50 @@ public class InjectionTest extends ScriptingTestBase {
 	public void testInjectEvent() throws ScriptException, InterruptedException {
 		
 		applicationProperties.clear();
+		applicationProperties.put("interrupted", new Boolean(false));
 		
-		ScriptEngine engine = getEngine();
-		ScriptContext context = getContext(engine);
+		final ScriptEngine engine = getEngine();
 		
-		Bindings bindings = context.getBindings(ScriptContext.ENGINE_SCOPE);
-		bindings.put("applicationProperties", applicationProperties);
-
+		engine.put("applicationProperties", applicationProperties);
+		
+		
 		InputStream resourceStream = getClass().getClassLoader().getResourceAsStream("polyfill.nashorn.js");
 		
-		engine.eval(new InputStreamReader(resourceStream), context);
+		engine.eval(new InputStreamReader(resourceStream));
 
-		StringBuilder script = new StringBuilder();
-		script.append("var testDelay = function() { };\n");
-		script.append("setInterval(testDelay, 1000);\n");
-		
-		String wrapped = "main(function() { " + script.toString() + " });";
-		
-		// This time, we need to be a bit more subtle in embedding. 
+		String wrapped = "function run() { eventLoop(); }";
+		engine.eval(wrapped);
+
 		Invocable inv = (Invocable) engine;
+				
 		Runnable r = inv.getInterface(Runnable.class);
+		
 		Thread th = new Thread(r);
 		th.start();
 		
-		// Now, during this, we need to be able to figure a way to throw events into the JS 
-		// thread. This needs to access the timer and the phaser, both of which are deliberately
-		// well-hidden. So we only expose them when we need to, and we do it carefully. 
+		// Now. At this stage we can theoretically inject new function calls. 
+		// Theoretically.... 
+		// We can do this by pushing them directly in as a new timer task. 
+
+		Phaser phaser = (Phaser) applicationProperties.get("phaser");
+		Timer timer = (Timer) applicationProperties.get("timer");
+		
+		Thread.sleep(200);
+		phaser.register();
+		timer.schedule(new TimerTask() {
+			public void run() {
+				try {
+					engine.eval("applicationProperties.interrupted = true;");
+					engine.eval("shutdown();");
+				} catch (ScriptException e) {
+					e.printStackTrace();
+				}
+			}
+		}, 0);
 		
 		th.join();
-
+		
+		Assert.assertTrue((Boolean)applicationProperties.get("interrupted"));
 	}
 
 }
