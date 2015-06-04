@@ -94,6 +94,12 @@
     cancel();
   };
   
+  /**
+   * This function actually just waits. While it is running, a second thread can 
+   * embed a timer containing a timeout call which arrives and deregisters, handles
+   * exceptions, and so on. This allows JavaScript functions in one thread to handle
+   * and respond to changes from a second. 
+   */
   context.eventLoop = function() {
     if (phaser.isTerminated()) {
       newPhaser();
@@ -109,6 +115,10 @@
     }
   };
  
+  /**
+   * A main wait function. This gets called with a function that can start timeouts
+   * and so on, but which doesn't truly exit until everything is completed. 
+   */
   context.main = function(fn, waitTimeMillis) {
   	  	
     if (!waitTimeMillis) {

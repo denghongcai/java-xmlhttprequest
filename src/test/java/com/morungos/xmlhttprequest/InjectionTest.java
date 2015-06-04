@@ -33,9 +33,7 @@ public class InjectionTest extends ScriptingTestBase {
 		applicationProperties.put("interrupted", new Boolean(false));
 		
 		final ScriptEngine engine = getEngine();
-		
 		engine.put("applicationProperties", applicationProperties);
-		
 		
 		InputStream resourceStream = getClass().getClassLoader().getResourceAsStream("polyfill.nashorn.js");
 		
@@ -59,12 +57,10 @@ public class InjectionTest extends ScriptingTestBase {
 		Timer timer = (Timer) applicationProperties.get("timer");
 		
 		Thread.sleep(200);
-		phaser.register();
 		timer.schedule(new TimerTask() {
 			public void run() {
 				try {
-					engine.eval("applicationProperties.interrupted = true;");
-					engine.eval("shutdown();");
+					engine.eval("setTimeout(function() { applicationProperties.interrupted = true; shutdown(); }, 0);");
 				} catch (ScriptException e) {
 					e.printStackTrace();
 				}
