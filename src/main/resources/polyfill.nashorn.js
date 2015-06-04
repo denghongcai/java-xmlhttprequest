@@ -121,7 +121,7 @@
     phaser.arriveAndDeregister();
     
     if (finalException) {
-    	throw finalException;
+      throw finalException;
     }
   };
  
